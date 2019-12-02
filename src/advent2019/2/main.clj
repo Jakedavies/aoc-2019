@@ -16,8 +16,8 @@
 
 (defn process-line [line]
   (let [program (atom (mapv  parse-int (str/split  line #",")))]
- ;   (reset! program (assoc @program 1 12))
- ;   (reset! program (assoc @program 2 2))
+    (reset! program (assoc @program 1 12))
+    (reset! program (assoc @program 2 2))
     (doseq [[opcode r1 r2 outputpos] (partition 4 @program)]
       (println opcode r1 r2 outputpos)
       (let [r1val (get @program r1)
@@ -26,8 +26,8 @@
           1 (reset! program
                     (assoc @program
                            outputpos
-                           (+ r1 r2)))
-          2 (reset! program (assoc @program outputpos (* r1 r2)))
+                           (+ r1val r2val)))
+          2 (reset! program (assoc @program outputpos (* r1val r2val)))
           99 (println "halt"))
         (println @program)))))
 
