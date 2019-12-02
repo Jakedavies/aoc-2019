@@ -16,8 +16,6 @@
 
 (def module-mass (atom 0))
 
-(- (required 1969) 1969)
-
 (defn parse-int [s]
    (Integer. (re-find  #"\d+" s )))
 
