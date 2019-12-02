@@ -4,22 +4,16 @@
 
 (def url  (io/resource "2/input"))
 
-(defn process-file [filename process-fn]
-  (with-open [reader (io/reader filename)]
-    (doseq [line (line-seq reader)]
-      (process-fn line))))
-
 (defn parse-int [s]
   (try
     (Integer. (re-find  #"\d+" s))
     (catch Exception e nil)))
 
-(defn process-line [line]
-  (let [program (atom (mapv  parse-int (str/split  line #",")))]
-    (reset! program (assoc @program 1 12))
-    (reset! program (assoc @program 2 2))
+; runs program on input list and returns the modified list
+; could rewrite without atoms, probably should, probably wont
+(defn run-program [input]
+  (let [program (atom input)]
     (doseq [[opcode r1 r2 outputpos] (partition 4 @program)]
-      (println opcode r1 r2 outputpos)
       (let [r1val (get @program r1)
             r2val (get @program r2)]
         (case opcode
@@ -28,8 +22,21 @@
                            outputpos
                            (+ r1val r2val)))
           2 (reset! program (assoc @program outputpos (* r1val r2val)))
-          99 (println "halt"))
-        (println @program)))))
+          99 0
+          )
+        ))
+    @program))
 
-(process-line "1,9,10,3,2,3,11,0,99,30,40,50")
-(process-file url process-line)
+(def initial-input (mapv parse-int (str/split (slurp url) #",")))
+
+(doseq [noun (range 99)]
+  (doseq [verb (range 99)]
+    (if (= 19690720
+           (-> initial-input
+               ; set the verb and the noun, then run
+               (assoc 1 noun)
+               (assoc 2 verb)
+               (run-program)
+               (get 0)))
+      (println noun verb))))
+
