@@ -10,7 +10,6 @@
     (catch Exception e nil)))
 
 ; runs program on input list and returns the modified list
-; could rewrite without atoms, probably should, probably wont
 (defn run-program [input]
   (let [program (atom input)]
     (doseq [[opcode r1 r2 outputpos] (partition 4 @program)]
@@ -22,9 +21,8 @@
                            outputpos
                            (+ r1val r2val)))
           2 (reset! program (assoc @program outputpos (* r1val r2val)))
-          99 0
-          )
-        ))
+          99 (println "halt"))
+        (println @program)))
     @program))
 
 (def initial-input (mapv parse-int (str/split (slurp url) #",")))
