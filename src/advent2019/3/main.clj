@@ -1,4 +1,4 @@
-(ns advent2019.2.main
+(ns advent2019.3.main
   (:require  [clojure.java.io :as io]
              [clojure.string :as str]))
 
@@ -10,8 +10,6 @@
 
 (def initial-input (mapv (fn [input] (str/split input #",")) (str/split-lines (slurp url))))
 
-initial-input
-
 (def wire1 (get initial-input 0))
 (def wire2 (get initial-input 1))
 
@@ -19,12 +17,39 @@ initial-input
 (def w1positions (atom {}))
 (def stepcount (atom 0))
 
-wire1
+
+(def move 
+  {\D [0 -1]
+   \U [0 1]
+   \L [-1 0]
+   \R [1 0]
+   })
+
+(def parse
+  (juxt first #(parse-int (subs % 1))))
+
+(parse "D333")
+(mapv + [1 1] [1 2])
+
+(defn apply-move [current transform]
+  (mapv + current transform))
+
+(#(apply-move %1 %2) [1 2] [-1 0])
+
+(defn trace
+  "advances the trace from the current trace list by the given [direction distance]"
+  {:test #(do
+            (assert (= (trace [[1 10]] [\D 3]) [[1 10] [1 9] [1 8] [1 7]])))}
+
+  ([current-path [direction distance]]
+   (reductions
+    #(apply-move %1 %2)
+    (last current-path)
+    (repeat distance (move direction)))))
+
 (doseq [instruction wire1]
-  (println "instruction" instruction)
-  (let [direction (subs instruction 0 1)
-        total-movement (parse-int (subs instruction 1))]
-    (dotimes [i total-movement]
+  (let [[direction movement] (parse instruction)]
+    (dotimes [i movement]
       (swap! stepcount + 1)
       (let [newcurrent (case direction
                          "D" [(get @w1current 0) (- (get @w1current 1) 1)]
@@ -40,9 +65,10 @@ wire1
 (def w2current (atom [0 0]))
 (def w2min (atom 1000000))
 
-(defn abs [n] (max n (- n)))
 (defn manhatten [[x y]]
-  (+ (abs x) (abs y)))
+  (+ (Math/abs x) (Math/abs y)))
+
+(manhatten [-10 10])
 
 (reset! stepcount 0)
 
