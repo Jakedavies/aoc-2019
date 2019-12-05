@@ -13,10 +13,6 @@
 (def wire1 (get initial-input 0))
 (def wire2 (get initial-input 1))
 
-(def w1current (atom [0 0]))
-(def w1positions (atom {}))
-(def stepcount (atom 0))
-
 (def move
   {\D [0 -1]
    \U [0 1]
@@ -37,14 +33,6 @@
 
 (test #'apply-move)
 
-(defn better-concat [list1 list2]
-  (reduce
-   #(conj %1 %2)
-   list1
-   list2))
-
-(better-concat [1] [1 2])
-
 (defn trace
   "advances the trace from the current trace list by the given [direction distance]"
   {:test #(do
@@ -55,19 +43,15 @@
   ([current-path [direction distance]]
    (println "running " direction distance)
    (into current-path  (rest  (reductions
-                                 #(apply-move %1 %2)
-                                 (peek current-path)
-                                 (repeat distance (move direction)))))))
+                               #(apply-move %1 %2)
+                               (peek current-path)
+                               (repeat distance (move direction)))))))
 
 (test #'trace)
-(trace  '((0 103)) [\D 3])
-
-;; wont run slows exponentially until stack overflow
-(time (count  (reduce
-               #(into %1 (trace %1 (parse %2)))
-               '((0 0))
-               (subvec  wire1 0 13))))
 
 ;; completes in a reasonable amount of time
-(time  (count (transduce (map parse) (completing trace) '((0 0)) wire1)))
-
+(time  (count (transduce
+               (map parse)
+               (completing trace)
+               [[0 0]]
+               wire1)))
