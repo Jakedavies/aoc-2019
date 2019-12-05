@@ -17,13 +17,11 @@
 (def w1positions (atom {}))
 (def stepcount (atom 0))
 
-
-(def move 
+(def move
   {\D [0 -1]
    \U [0 1]
    \L [-1 0]
-   \R [1 0]
-   })
+   \R [1 0]})
 
 (def parse
   (juxt first #(parse-int (subs % 1))))
@@ -31,62 +29,45 @@
 (parse "D333")
 (mapv + [1 1] [1 2])
 
-(defn apply-move [current transform]
-  (mapv + current transform))
+(defn apply-move
+  "Takes a current position and a transformation vector to produce the new position"
+  {:test #(do
+            (assert (= (apply-move [1 2] [-1 0]) [0 2])))}
+  ([current transform] (mapv + current transform)))
 
-(#(apply-move %1 %2) [1 2] [-1 0])
+(test #'apply-move)
+
+(defn better-concat [list1 list2]
+  (reduce
+   #(conj %1 %2)
+   list1
+   list2))
+
+(better-concat [1] [1 2])
 
 (defn trace
   "advances the trace from the current trace list by the given [direction distance]"
   {:test #(do
-            (assert (= (trace [[1 10]] [\D 3]) [[1 10] [1 9] [1 8] [1 7]])))}
+            (assert (=
+                     (trace [[1 2] [1 10]] [\D 3])
+                     [[1 2] [1 10] [1 9] [1 8] [1 7]])))}
 
   ([current-path [direction distance]]
-   (reductions
-    #(apply-move %1 %2)
-    (last current-path)
-    (repeat distance (move direction)))))
+   (println "running " direction distance)
+   (into current-path  (rest  (reductions
+                                 #(apply-move %1 %2)
+                                 (peek current-path)
+                                 (repeat distance (move direction)))))))
 
-(doseq [instruction wire1]
-  (let [[direction movement] (parse instruction)]
-    (dotimes [i movement]
-      (swap! stepcount + 1)
-      (let [newcurrent (case direction
-                         "D" [(get @w1current 0) (- (get @w1current 1) 1)]
-                         "U" [(get @w1current 0) (+ 1 (get @w1current 1))]
-                         "R" [(+ (get @w1current 0) 1) (get @w1current 1)]
-                         "L" [(- (get @w1current 0) 1) (get @w1current 1)])]
-        (reset! w1current newcurrent)
-        (let [[x y] newcurrent]
-          (swap! w1positions assoc [x y] @stepcount))))))
+(test #'trace)
+(trace  '((0 103)) [\D 3])
 
-@w1positions
+;; wont run slows exponentially until stack overflow
+(time (count  (reduce
+               #(into %1 (trace %1 (parse %2)))
+               '((0 0))
+               (subvec  wire1 0 13))))
 
-(def w2current (atom [0 0]))
-(def w2min (atom 1000000))
+;; completes in a reasonable amount of time
+(time  (count (transduce (map parse) (completing trace) '((0 0)) wire1)))
 
-(defn manhatten [[x y]]
-  (+ (Math/abs x) (Math/abs y)))
-
-(manhatten [-10 10])
-
-(reset! stepcount 0)
-
-(doseq [instruction wire2]
-  (let [direction (subs instruction 0 1)
-        total-movement (parse-int (subs instruction 1))]
-    (dotimes [i total-movement]
-      (let [newcurrent (case direction
-                         "D" [(get @w2current 0) (- (get @w2current 1) 1)]
-                         "U" [(get @w2current 0) (+ 1 (get @w2current 1))]
-                         "R" [(+ (get @w2current 0) 1) (get @w2current 1)]
-                         "L" [(- (get @w2current 0) 1) (get @w2current 1)])]
-        (swap! stepcount + 1)
-        (let [[x y] newcurrent]
-          (if (contains? @w1positions [x y])
-            (if (< (+ @stepcount (get @w1positions [x y])) @w2min)
-              (reset! w2min (+ @stepcount (get @w1positions [x y]))))))
-        (reset! w2current newcurrent)))))
-
-(println @w2min)
-@w2min
