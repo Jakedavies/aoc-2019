@@ -26,33 +26,33 @@
 (defn eval-with-mode [state mode r]
   (if (= mode 1) r (get state r)))
 
-(defn apply-instruction [counter state get-input output-fn]
-  (let [[opcode mode1 mode2 mode3] (instruction-components (get state counter))]
-    (let [v1 (get state (+ counter 1))
-          v2 (get state (+ counter 2))
-          v3 (get state (+ counter 3))
-          f1 (eval-with-mode state mode1 v1)
-          f2 (eval-with-mode state mode2 v2)]
-      (case opcode
-        1 [(+ counter 4) (assoc state v3 (+ f1 f2))]
-        2 [(+ counter 4) (assoc state v3 (* f1 f2))]
-        3 [(+ counter 2) (assoc state v1 (get-input))]
-        4 [(+ counter 2) (do (output-fn f1)
-                             state)]
-        5 (if (not= f1 0)
-            [f2 state]
-            [(+ counter 3) state])
-        6 (if (zero? f1)
-            [f2 state]
-            [(+ counter 3) state])
-        7 [(+ counter 4)
-           (assoc state v3 (if (< f1 f2) 1 0))]
-        8 [(+ counter 4)
-           (assoc state v3 (if (= f1 f2) 1 0))]
-        99 [(+ counter 100000000000) state]))))
-
-(def itest (atom  [1 2]))
-(pop @itest)
+(defn apply-instruction []
+  (merge i
+         (let [{:keys [input state counter output]} i]
+           (let [[opcode mode1 mode2 mode3] (instruction-components (get state counter))]
+             (let [v1 (get state (+ counter 1))
+                   v2 (get state (+ counter 2))
+                   v3 (get state (+ counter 3))
+                   f1 (eval-with-mode state mode1 v1)
+                   f2 (eval-with-mode state mode2 v2)]
+               (case opcode
+                 1 {:counter (+ counter 4) :state (assoc state v3 (+ f1 f2))}
+                 2 {:counter (+ counter 4) :state (assoc state v3 (* f1 f2))}
+                 3 (if (empty? input)
+                     {:counter counter :state state :awaiting-input true}
+                     {:input (rest input) :counter (+ counter 2) :state (assoc state v1 (first input))})
+                 4 {:counter (+ counter 2) :state state :output f1}
+                 5 (if (not= f1 0)
+                     {:counter  f2 :state state}
+                     {:counter (+ counter 3) :state state})
+                 6 (if (zero? f1)
+                     {:counter f2 :state state}
+                     {:counter (+ counter 3) :state state})
+                 7 {:counter (+ counter 4)
+                    :state (assoc state v3 (if (< f1 f2) 1 0))}
+                 8 {:counter (+ counter 4)
+                    :state (assoc state v3 (if (= f1 f2) 1 0))}
+                 99 {:counter (+ counter 2) :state state :halted true}))))))
 
 (defn run [i]
   (let [inputs (atom i)
@@ -77,11 +77,6 @@
       (#(run [i4 %1]))
       (#(run [i5 %1]))))
 
-(run [4 0])
-(run [4 0])
-
-(run-phases 5 5 5 5 4)
-
 (defn permutations [s]
   (lazy-seq
    (if (seq (rest s))
@@ -89,4 +84,30 @@
                      (map #(cons x %) (permutations (remove #{x} s)))))
      [s])))
 
-(apply max (mapv #(apply run-phases %1) (permutations (range 0 5))))
+; if the computer is awaiting input-> move forward to the next computer
+; run until the computer halts or await input
+; if halts remove from list
+; if awaiting input, advance to next computer
+
+(defn run [[computer & rest-computers :as computers] inputs]
+  (if-not computer
+    (first inputs)
+    (let [computer' (-> computer
+                        (dissoc :awaiting-input)
+                        (update :input concat inputs)
+                        (->> (iterate apply-instruction)
+                             (drop-while #(not (or (:halted %) (:awaiting-input %))))
+                             first))
+          outputs (:output computer')
+          computers' (cond
+                       (:halted computer')
+                       rest-computers
+                       (:awaiting-input computer')
+                       (conj (vec rest-computers) (assoc computer' :output [])))]
+      (recur computers' outputs))))
+
+(defn initial-amplifier
+  [p phase-input]
+  {:state p :counter 0 :input [phase-input] :output []})
+
+(run [(initial-amplifier initial-input 4)] [0])
