@@ -26,7 +26,7 @@
 (defn eval-with-mode [state mode r]
   (if (= mode 1) r (get state r)))
 
-(defn apply-instruction []
+(defn apply-instruction [i]
   (merge i
          (let [{:keys [input state counter output]} i]
            (let [[opcode mode1 mode2 mode3] (instruction-components (get state counter))]
@@ -41,7 +41,7 @@
                  3 (if (empty? input)
                      {:counter counter :state state :awaiting-input true}
                      {:input (rest input) :counter (+ counter 2) :state (assoc state v1 (first input))})
-                 4 {:counter (+ counter 2) :state state :output f1}
+                 4 {:counter (+ counter 2) :state state :output (conj output f1)}
                  5 (if (not= f1 0)
                      {:counter  f2 :state state}
                      {:counter (+ counter 3) :state state})
@@ -89,6 +89,8 @@
 ; if halts remove from list
 ; if awaiting input, advance to next computer
 
+(apply-instruction {:state initial-input :counter 0 :input [0] :output []})
+
 (defn run [[computer & rest-computers :as computers] inputs]
   (if-not computer
     (first inputs)
@@ -108,6 +110,19 @@
 
 (defn initial-amplifier
   [p phase-input]
-  {:state p :counter 0 :input [phase-input] :output []})
+  {:state p :counter 0 :input phase-input  :output []})
 
-(run [(initial-amplifier initial-input 4)] [0])
+(def input2 [3 26 1001 26 -4 26 3 27 1002 27 2 27 1 27 26 27 4 27 1001 28 -1 28 1005 28 6 99 0 0 5])
+(apply-instruction [{:input () :state input2 :counter 6 :output [] :awaiting-input true}])
+(defn run-amped [i1 i2 i3 i4 i5]
+  (run [(initial-amplifier initial-input [i1])
+        (initial-amplifier initial-input [i2])
+        (initial-amplifier initial-input [i3])
+        (initial-amplifier initial-input [i4])
+        (initial-amplifier initial-input [i5])] [0]))
+
+(permutation) (run-amped 9 5 6 7 5)
+
+(apply max (mapv #(apply run-amped %1) (permutations (range 5 10))))
+
+

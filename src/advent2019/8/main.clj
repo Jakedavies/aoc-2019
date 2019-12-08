@@ -12,12 +12,30 @@
 
 (def initial-input (map parse-int (str/split (slurp url) #"")))
 
-(def layers (partition (* 25 6) initial-input))
-
-(get (frequencies  (first layers)) 0)
+(def layers   (partition (* 25 6) initial-input))
 
 (def layer-frequencies (map frequencies layers))
+
+(defn write-file [to-write]
+  (with-open [w (clojure.java.io/writer  "temp.ppm")]
+    (.write w to-write)))
 
 (reduce
  #(if (< (get %1 0) (get %2 0)) %1 %2)
  layer-frequencies)
+
+(defn is-solid [n] (not (= n 2)))
+
+(def flattened-image (for [index (range (count (first layers)))]
+                       (loop [layer-index 0]
+                         (let [color (nth (nth layers layer-index) index)]
+                           (if (is-solid color)
+                             color
+                             (recur (+ layer-index 1)))))))
+
+(defn to-color [input]
+  (case input
+    1 "255 255 255 \n"
+    0 "0 0 0 \n"))
+
+(write-file (str  "P3\n25 6\n 255\n"  (apply str (map to-color flattened-image))))
