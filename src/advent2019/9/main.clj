@@ -22,32 +22,38 @@
 (assert (= (instruction-components 1002) [2 0 1 0]))
 
 (defn eval-with-mode [state mode r relative-base]
-  (if (= 2 mode)
-    (do (println "relative-base " relative-base r)
-        (println (get state (+ relative-base r)))))
   (case mode
     2 (get state (+ relative-base r))
     1 r
     0 (get state r)))
 
+(defn eval-with-mode-output [state mode r relative-base]
+  (case mode
+    2 (+ relative-base r)
+    1 nil
+    0 r))
+
 (defn apply-instruction [i]
   (merge i
          (let [{:keys [input state counter output relative-base]} i]
            (let [[opcode mode1 mode2 mode3] (instruction-components (get state counter))]
-             (if  (= mode3 2) (println "Non 0 write code for r3" opcode mode3))
-             (if  (= mode2 2) (println "Non 0 write code for r2" opcode mode2))
-             (if  (= mode1 2) (println "Non 0 write code for r1" opcode mode1))
              (let [v1 (get state (+ counter 1))
                    v2 (get state (+ counter 2))
                    v3 (get state (+ counter 3))
+                   o1 (eval-with-mode-output state mode1 v1 relative-base)
+                   o2 (eval-with-mode-output state mode2 v2 relative-base)
+                   o3 (eval-with-mode-output state mode3 v3 relative-base)
                    f1 (eval-with-mode state mode1 v1 relative-base)
-                   f2 (eval-with-mode state mode2 v2 relative-base)]
+                   f2 (eval-with-mode state mode2 v2 relative-base)
+                   f3 (eval-with-mode state mode3 v3 relative-base)]
+
+               (if (= opcode 4) (println counter))
                (case opcode
-                 1 {:counter (+ counter 4) :state (assoc state v3 (+ f1 f2))}
-                 2 {:counter (+ counter 4) :state (assoc state v3 (* f1 f2))}
+                 1 {:counter (+ counter 4) :state (assoc state o3 (+ f1 f2))}
+                 2 {:counter (+ counter 4) :state (assoc state o3 (* f1 f2))}
                  3 (if (empty? input)
                      {:counter counter :state state :awaiting-input true}
-                     {:input (rest input) :counter (+ counter 2) :state (assoc state v1 (first input))})
+                     {:input (rest input) :counter (+ counter 2) :state (assoc state o1 (first input))})
                  4 {:counter (+ counter 2) :state state :output (conj output f1)}
                  5 (if (not= f1 0)
                      {:counter  f2 :state state}
@@ -56,9 +62,9 @@
                      {:counter f2 :state state}
                      {:counter (+ counter 3) :state state})
                  7 {:counter (+ counter 4)
-                    :state (assoc state v3 (if (< f1 f2) 1 0))}
+                    :state (assoc state o3 (if (< f1 f2) 1 0))}
                  8 {:counter (+ counter 4)
-                    :state (assoc state v3 (if (= f1 f2) 1 0))}
+                    :state (assoc state o3 (if (= f1 f2) 1 0))}
                  9 {:counter (+ counter 2)
                     :relative-base (+ relative-base f1)}
                  99 {:counter (+ counter 2) :state state :halted true}))))))
@@ -108,10 +114,6 @@
                        (conj (vec rest-computers) (assoc computer' :output [])))]
       (recur computers' outputs))))
 
-(def p1 [109 1 204 -1 1001 100 1 100 1008 100 16 101 1006 101 0 99])
-(def p2 [1102 34915192 34915192 7 4 7 99 0])
-(def p3 [104 1125899906842624 99])
-
 (defn pad-memory [cur]
   (into [] (concat cur (map (constantly 0) (range (- 10000 (count cur)))))))
 
@@ -119,7 +121,11 @@
   [state input]
   {:state (pad-memory state) :counter 0 :input input  :output [] :relative-base 0})
 
-(:output (-> (initial-state initial-input [1])
+
+; run for input number 2
+
+
+(:output (-> (initial-state initial-input [2])
              (->> (iterate apply-instruction)
                   (drop-while #(not (or (:halted %) (:awaiting-input %))))
                   first)))
